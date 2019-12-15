@@ -2,7 +2,7 @@ use std::io;
 
 use std::cmp::Ordering;
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 #[derive(Hash, PartialEq, Eq)]
 #[derive(Debug)]
@@ -36,25 +36,30 @@ fn main() {
     let wire1 = read_wire();
     let wire2 = read_wire();
 
-    let common = wire1.intersection(&wire2).collect::<Vec<&Point>>();
-    // let p: Point = common.min();
-
-    let p = common.iter().min_by(|p1, p2| p1.cmp(p2)).unwrap();
-    println!("{}", p.x.abs()+p.y.abs());
-    // println!("{:?}", common);
+    let mut distance = 0;
+    for p1 in wire1.keys() {
+        if let Some(d2) = wire2.get(p1) {
+            let step = wire1.get(p1).unwrap() + d2;
+            if step < distance || distance == 0 {
+                distance = step;
+            }
+        }
+    }
+    println!("{:?}", distance);
 }
 
-fn read_wire() -> HashSet<Point> {
+fn read_wire() -> HashMap<Point, usize> {
     // build a set of all points the wire is visiting
     // input format: <dir><num>,<dir><num>,... where <dir> in [R,L,D,U]
     let mut wire_directions = String::new();
     io::stdin().read_line(&mut wire_directions).unwrap();
 
-    let mut hs = HashSet::new();
+    let mut hs = HashMap::new();
 
     // current coordinates
     let mut x: i32 = 0;
     let mut y: i32 = 0;
+    let mut distance: usize = 0;
 
     for instr in wire_directions.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
         // let dir = instr.chars().next().unwrap();
@@ -69,28 +74,32 @@ fn read_wire() -> HashSet<Point> {
                 for _ in 0..mag {
                     let p = Point{x: x, y: y};
                     x += 1;
-                    hs.insert(p);
+                    hs.insert(p, distance);
+                    distance += 1;
                 }
             },
             'U' => {
                 for _ in 0..mag {
                     let p = Point{x: x, y: y};
                     y += 1;
-                    hs.insert(p);
+                    hs.insert(p, distance);
+                    distance += 1;
                 }
             },
             'D' => {
                 for _ in 0..mag {
                     let p = Point{x: x, y: y};
                     y -= 1;
-                    hs.insert(p);
+                    hs.insert(p, distance);
+                    distance += 1;
                 }
             },
             'L' => {
                 for _ in 0..mag {
                     let p = Point{x: x, y: y};
                     x -= 1;
-                    hs.insert(p);
+                    hs.insert(p, distance);
+                    distance += 1;
                 }
             },
             _ => {
