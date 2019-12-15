@@ -21,6 +21,6 @@ fn calc(x: u32) -> u32 {
     match tmp {
         0 => { 0 },
         1 => { 0 },
-        _ => { tmp - 2 },
+        _ => { tmp - 2 + calc(tmp-2) },
     }
 }
