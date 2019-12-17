@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{self, BufRead};
 
 struct ParamMode {
@@ -54,6 +56,36 @@ impl ParamMode {
                 while modes.len() < 1 {
                     modes.push(0);
                 }
+                ParamMode { code: code, modes: modes }
+            },
+            5 => {
+                let mut modes = cvec;
+                while modes.len() < 2 {
+                    modes.push(0);
+                }
+                ParamMode { code: code, modes: modes }
+            },
+            6 => {
+                let mut modes = cvec;
+                while modes.len() < 2 {
+                    modes.push(0);
+                }
+                ParamMode { code: code, modes: modes }
+            },
+            7 => {
+                let mut modes = cvec;
+                while modes.len() < 2 {
+                    modes.push(0);
+                }
+                if modes.len() < 3 { modes.push(1); } // see opcode 3 alert
+                ParamMode { code: code, modes: modes }
+            },
+            8 => {
+                let mut modes = cvec;
+                while modes.len() < 2 {
+                    modes.push(0);
+                }
+                if modes.len() < 3 { modes.push(1); } // see opcode 3 alert
                 ParamMode { code: code, modes: modes }
             },
             99 => {
@@ -132,6 +164,36 @@ fn calc(numbers: &mut [i32]) -> i32 {
                 // if output != 0 { diagnostic_failure(curr, numbers) }
 
                 curr += 2;
+            },
+            5 => {
+                if gp(0) != 0 {
+                    curr = gp(1) as usize;
+                } else {
+                    curr += 3;
+                }
+            },
+            6 => {
+                if gp(0) == 0 {
+                    curr = gp(1) as usize;
+                } else {
+                    curr += 3;
+                }
+            },
+            7 => {
+                numbers[gp(2) as usize] = if gp(0) < gp(1) {
+                    1
+                } else {
+                    0
+                };
+                curr += 4;
+            },
+            8 => {
+                numbers[gp(2) as usize] = if gp(0) == gp(1) {
+                    1
+                } else {
+                    0
+                };
+                curr += 4;
             },
             // exit on unimplemented
             _ => { end(pmode.code, numbers); },
