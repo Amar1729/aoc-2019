@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::fs;
 use std::io::{self, BufRead};
 
 struct ParamMode {
@@ -100,11 +101,8 @@ impl ParamMode {
 }
 
 fn main() {
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
-
     let mut memory: Vec<i32> =
-        input
+        fs::read_to_string("mem.txt").unwrap()
         .split(',').map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.parse().unwrap())
@@ -172,7 +170,7 @@ fn calc(numbers: &mut [i32]) -> i32 {
             },
             4 => {
                 let output = gp(0);
-                println!("{}", output);
+                println!(">{}", output);
 
                 // only panic for '4' instructions that are not the last one
                 // i.e. remove this after debugging
