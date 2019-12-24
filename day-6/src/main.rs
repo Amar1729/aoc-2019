@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{self, BufRead};
 use std::collections::HashMap;
 
@@ -55,6 +57,40 @@ impl System {
             o.iter().map(|p| self.count(p, base+1)).sum::<usize>() + base
         }
     }
+
+    fn find_parent(&self, id: &str) -> Option<String> {
+        // find the parent of a given ID
+        if id == self.root {
+            None
+        } else {
+            for (parent, children) in &self.planets {
+                for child in children {
+                    if id == child {
+                        return Some(parent.to_string());
+                    }
+                }
+            }
+
+            None
+        }
+    }
+
+    fn path_to_root(&self, id: &str) -> Vec<String> {
+        // finds the path from an id to the root (root is last element on vector)
+        let mut paths: Vec<String> = Vec::new();
+        let mut curr = id.to_string();
+        loop {
+            if let Some(p) = self.find_parent(&curr) {
+                // paths.push(p.clone());
+                paths.insert(0, p.clone());
+                curr = p.to_string();
+            } else {
+                break;
+            }
+        }
+
+        paths
+    }
 }
 
 fn main() {
@@ -88,5 +124,25 @@ fn main() {
     }
 
     // println!("{:?}", orbits);
-    println!("root: {:?}", sys.count(&sys.root, 0)); // 50, should be 42
+    println!("{}", calc(sys));
+}
+
+fn calc(sys: System) -> usize {
+    // calculate number for orbital transfers from YOU -> SAN
+    let mut path_you = sys.path_to_root("YOU");
+    let mut path_san = sys.path_to_root("SAN");
+
+    loop {
+        if path_you[0] == path_san[0] {
+            path_you.remove(0);
+            path_san.remove(0);
+        } else {
+            break;
+        }
+    }
+
+    // println!("{:?}", path_you);
+    // println!("{:?}", path_san);
+
+    path_you.len() + path_san.len()
 }
