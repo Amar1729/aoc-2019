@@ -9,7 +9,7 @@ struct ParamMode {
 }
 
 impl ParamMode {
-    fn new(opcode: u32) -> ParamMode {
+    fn new(opcode: u64) -> ParamMode {
         let mut cvec: Vec<usize> = opcode.to_string().chars().rev()
             .map(|c| c.to_digit(10).unwrap())
             .map(|x| x as usize)
@@ -101,7 +101,7 @@ impl ParamMode {
 }
 
 fn main() {
-    let mut memory: Vec<i32> =
+    let mut memory: Vec<i64> =
         fs::read_to_string("mem.txt").unwrap()
         .split(',').map(|s| s.trim())
         .filter(|s| !s.is_empty())
@@ -126,17 +126,30 @@ fn amplifier(memory: &mut [i32], phase: usize) -> i32 {
 }
 */
 
-fn calc(numbers: &mut [i32]) -> i32 {
+fn calc(numbers: &mut [i64]) -> i64 {
     let mut curr = 0;
-    let mut pmode = ParamMode::new(numbers[curr] as u32); // is i32 -> u32 safe?
+    let mut relative: i64 = 0;
+    let mut pmode = ParamMode::new(numbers[curr] as u64);
 
     while pmode.code != 99 {
 
-        let gp = |p: usize| -> i32 {
-            if pmode.modes[p] == 0 {
-                numbers[numbers[curr+p+1] as usize]
-            } else {
-                numbers[curr+p+1]
+                //println!("outer: {:?}", pmode);
+
+        let gp = |p: usize| -> i64 {
+            match pmode.modes[p] {
+                0 => {
+                    numbers[numbers[curr+p+1] as usize]
+                },
+                1 => {
+                    numbers[curr+p+1]
+                },
+                2 => {
+                    let offset = numbers[curr+p+1] + relative;
+                    numbers[offset as usize]
+                },
+                _ => {
+                    panic!("Unsupported mode: {}", pmode.modes[p]);
+                }
             }
         };
 
@@ -162,7 +175,7 @@ fn calc(numbers: &mut [i32]) -> i32 {
                 let input =
                     reader.lock()
                     .lines().next().unwrap().unwrap()
-                    .parse::<i32>().unwrap();
+                    .parse::<i64>().unwrap();
 
                 numbers[store as usize] = input;
                 // println!("[{}] = {}", store, input);
@@ -211,13 +224,13 @@ fn calc(numbers: &mut [i32]) -> i32 {
             // exit on unimplemented
             _ => { end(pmode.code, numbers); },
         }
-        pmode = ParamMode::new(numbers[curr] as u32);
+        pmode = ParamMode::new(numbers[curr] as u64);
     }
 
     return numbers[0];
 }
 
-fn diagnostic_failure(curr: usize, numbers: &[i32]) {
+fn diagnostic_failure(curr: usize, numbers: &[i64]) {
     // print diagnostic info
     println!("rax: {}", curr);
 
@@ -238,7 +251,7 @@ fn diagnostic_failure(curr: usize, numbers: &[i32]) {
     panic!();
 }
 
-fn end(opcode: usize, numbers: &[i32]) {
+fn end(opcode: usize, numbers: &[i64]) {
     println!("{:?}", numbers);
     panic!("opcode: {}", opcode);
 }
