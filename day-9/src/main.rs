@@ -3,6 +3,7 @@
 use std::fs;
 use std::io::{self, BufRead};
 
+#[derive(Debug)]
 struct ParamMode {
     code: usize,
     modes: Vec<usize>,
@@ -89,6 +90,13 @@ impl ParamMode {
                 if modes.len() < 3 { modes.push(1); } // see opcode 3 alert
                 ParamMode { code: code, modes: modes }
             },
+            9 => {
+                let mut modes = cvec;
+                while modes.len() < 1 {
+                    modes.push(0);
+                }
+                ParamMode { code: code, modes: modes }
+            },
             99 => {
                 let modes = Vec::new();
                 ParamMode { code: code, modes: modes }
@@ -108,23 +116,14 @@ fn main() {
         .map(|s| s.parse().unwrap())
         .collect();
 
+    // support larger memory:
+    // for _ in 0..(memory.len()*20) {
+    for _ in 0..10u32.pow(5) {
+        memory.push(0);
+    }
+
     calc(&mut memory);
 }
-
-/* dont know how to instrument the rest of program with this function?
-fn amplifier(memory: &mut [i32], phase: usize) -> i32 {
-    // takes memory and phase setting
-    // will read one input from stdin, and give one output by running our intcode computer
-
-    let reader = io::stdin();
-    let input_instruction =
-        reader.lock()
-        .lines().next().unwrap().unwrap()
-        .parse::<i32>().unwrap();
-
-    return calc(memory);
-}
-*/
 
 fn calc(numbers: &mut [i64]) -> i64 {
     let mut curr = 0;
@@ -145,6 +144,7 @@ fn calc(numbers: &mut [i64]) -> i64 {
                 },
                 2 => {
                     let offset = numbers[curr+p+1] + relative;
+                    println!("offset: {}", offset);
                     numbers[offset as usize]
                 },
                 _ => {
@@ -178,7 +178,14 @@ fn calc(numbers: &mut [i64]) -> i64 {
                     .parse::<i64>().unwrap();
 
                 numbers[store as usize] = input;
-                // println!("[{}] = {}", store, input);
+
+                diagnostic_failure(curr, numbers);
+
+                println!("{:?}", pmode);
+                println!("store: {}", store as usize);
+                println!("curr: {:?}", curr);
+                println!("rel: {:?}", relative);
+                println!("[{}] = {}", store, input);
                 curr += 2;
             },
             4 => {
@@ -220,6 +227,10 @@ fn calc(numbers: &mut [i64]) -> i64 {
                     0
                 };
                 curr += 4;
+            },
+            9 => {
+                relative += gp(0);
+                curr += 2;
             },
             // exit on unimplemented
             _ => { end(pmode.code, numbers); },
