@@ -2,12 +2,24 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 
+use std::f32;
+
 use std::collections::HashSet;
+use std::cmp::Ordering;
 
 #[derive(Eq, PartialEq, Hash, Debug)]
 struct SimplePoint {
     x: i8,
     y: i8,
+}
+
+#[derive(Debug)]
+struct FullPoint {
+    sp: SimplePoint,
+    p: (i8, i8),
+
+    rank: usize,
+    deg: f32,
 }
 
 impl SimplePoint {
@@ -62,26 +74,188 @@ impl SimplePoint {
     }
 }
 
+impl FullPoint {
+    fn new(x: i8, y: i8) -> FullPoint {
+        let mut deg = if x == 0 && y == 0 {
+            panic!("don't address origin")
+        } else if y == 0 {
+            if x > 0 {
+                0.
+            } else {
+                180.
+            }
+        } else if x == 0 {
+            if y > 0 {
+                90.
+            } else {
+                270.
+            }
+        } else {
+            let _deg = (y as f32/x as f32).atan() * 180. / f32::consts::PI;
+            if x < 0 && y < 0 {
+                _deg + 180.
+            } else {
+                _deg
+            }
+        } + 90.;
+
+        if deg as u32 >= 360 {
+            deg -= 360.;
+        }
+
+        FullPoint {
+            sp: SimplePoint::new(x, y),
+            p: (x, y),
+            rank: 0,
+            deg: deg,
+        }
+    }
+
+    fn increment(&mut self) {
+        self.rank += 1;
+    }
+}
+
+impl Eq for FullPoint { }
+
+impl PartialEq for FullPoint {
+    fn eq(&self, other: &Self) -> bool {
+        self.sp == other.sp && self.p == other.p
+    }
+}
+
+impl Ord for FullPoint {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.sp == other.sp {
+            let dist_self = i8::abs(self.p.0) + i8::abs(self.p.1);
+            let dist_other = i8::abs(other.p.0) + i8::abs(other.p.1);
+            if dist_self > dist_other {
+                Ordering::Greater
+            } else if dist_self < dist_other {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        } else {
+            self.deg.partial_cmp(&other.deg).unwrap()
+        }
+    }
+}
+
+impl PartialOrd for FullPoint {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 fn main() {
     let f = File::open("input.txt").unwrap();
     let reader = BufReader::new(f);
 
     let mut asteroids: Vec<(i8, i8)> = Vec::new();
 
+    let mut point: Option<(i8, i8)> = None;
+
     for (i, line) in reader.lines().enumerate() {
         for (j, c) in line.unwrap().chars().enumerate() {
             if c == '#' {
                 asteroids.push((j as i8, i as i8));
             }
+
+            if c == 'X' {
+                point = Some((j as i8, i as i8));
+                println!("found result: {:?}", point);
+            }
         }
     }
 
+    /* p1:
     // calculate count for each asteroid
-    let result = asteroids.iter().map(|a| calc(*a, &asteroids)).max().unwrap();
+    let result = asteroids.iter().map(|a| find_count(*a, &asteroids)).max().unwrap();
     println!("{}", result);
+    */
+
+    match point {
+        None => {
+            println!("finding result ...");
+            // find the location of the asteroid center
+            let result: ((i8, i8), usize) =
+                asteroids
+                .iter().map(|a| (*a, find_count(*a, &asteroids)))
+                .fold(((0, 0), 0), |ast, other| {
+                    if other.1 > ast.1 { other } else { ast }
+                });
+
+            point = Some(result.0);
+        },
+        _ => {},
+    }
+
+    // assume point is set here
+    println!("using result: {:?}", point);
+    let point = point.unwrap();
+
+    let mut corrected: Vec<FullPoint> =
+        asteroids.iter()
+        .map(|p| (p.0 - point.0, p.1 - point.1))
+        .filter(|p| !(p.0 == 0 && p.1 == 0))  // can i do FilterMap instead?
+        .map(|a| FullPoint::new(a.0, a.1))
+        .collect();
+
+    corrected.sort();
+
+    {
+        let mut prev = &corrected[0];
+        for i in 1..corrected.len() {
+            // Eq checks that the SimplePoints of each are the same
+            if corrected[i].sp == (*prev).sp {
+                corrected[i].increment();
+            }
+            prev = &corrected[i];
+        }
+    }
+
+    let mut rank = 0;
+    let mut count = 0;
+
+    loop {
+        let mut i = 0;
+        let mut p: (i8, i8) = (0, 0);
+        while i < corrected.len() {
+            let curr = &corrected[i];
+            p = curr.p.clone();
+            if curr.rank <= rank {
+                // println!("{} destroy: {:?}", count, curr.p);
+                corrected.remove(i);
+                count += 1;
+            } else {
+                // println!("{} skip: {:?}", count, curr.p);
+
+                i += 1;
+            }
+
+            if count == 200 {
+                break;
+            }
+        }
+
+        rank += 1;
+
+        if count == 200 {
+            let adj = (p.0 as i32 + point.0 as i32, p.1 as i32 + point.1 as i32);
+            println!("{:?}", adj);
+            let result = 100 * adj.0 + adj.1;
+            println!("{:?}", result);
+
+            break;
+        }
+
+        // dbg
+        if corrected.len() == 0 { panic!("empty queue after: {}", count); }
+    }
 }
 
-fn calc(point: (i8, i8), asteroids: &[(i8, i8)]) -> usize {
+fn find_count(point: (i8, i8), asteroids: &[(i8, i8)]) -> usize {
 
     let mut slope_set: HashSet<SimplePoint> = HashSet::new();
 
