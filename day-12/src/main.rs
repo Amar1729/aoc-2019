@@ -21,6 +21,7 @@ use std::num::ParseIntError;
 
 // PE = abs(x) + ...
 // KE = abs(vx) + ...
+#[derive(Clone)]
 struct Moon {
     pos: [i32; 3],
     vel: [i32; 3],
@@ -118,21 +119,51 @@ fn main() {
         .map(|l| Moon::from_str(&l.unwrap()).unwrap())
         .collect();
 
-    for i in 0..1000 + 1 {
-        if i > 0 {
-            time_step(&mut moons);
+    let mut comps = [0, 0, 0];
+    let orig: Vec<Moon> = moons.clone();
+
+    let mut i: u64 = 0;
+    loop {
+        time_step(&mut moons);
+        i += 1;
+
+        for j in 0..3 {
+            if comps[j] == 0 && component_check(j, &moons, &orig) {
+                comps[j] = i;
+            }
         }
 
-        /*
-        println!("{} steps:", i);
-        print_system(&moons);
-        println!();
-        */
-
+        if !comps.contains(&0) {
+            break;
+        }
     }
 
-    let energy: i32 = moons.iter().map(|m| m.energy()).sum();
-    println!("{:?}", energy);
+    let result =
+        comps.iter()
+        .fold(comps[0], |a, b| a * b / gcd(a, *b));
+
+    println!("{}", result);
+}
+
+fn component_check(ind: usize, moons: &[Moon], orig: &[Moon]) -> bool {
+    // check whether specific components of moons have repeated
+    for i in 0..moons.len() {
+        if moons[i].pos[ind] != orig[i].pos[ind] { return false; }
+        if moons[i].vel[ind] != orig[i].vel[ind] { return false; }
+    }
+
+    true
+}
+
+fn gcd(x: u64, y: u64) -> u64 {
+    // calculate gcd(x, y)
+    for i in (2..std::cmp::min(x, y)+1).rev() {
+        if x%i == 0 && y%i == 0 {
+            return i;
+        }
+    }
+
+    return 1;
 }
 
 fn time_step(moons: &mut[Moon]) {
